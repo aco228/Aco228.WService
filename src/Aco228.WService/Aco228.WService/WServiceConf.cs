@@ -6,9 +6,11 @@ namespace Aco228.WService;
 public class WServiceConf
 {
     public virtual string BaseUrl { get; }
+    public virtual string UserAgent { get; }
     public virtual CancellationToken CancellationToken { get; }
 
     public virtual void OnUrlCreated(WMethodType methodType, string url, HttpContent? httpContent) { }
     public virtual void OnException(RequestException exception){}
+    public virtual void OnStringReceived(WMethodType methodType, string url, HttpContent? httpContent, string stringResponse) { }
 
 }

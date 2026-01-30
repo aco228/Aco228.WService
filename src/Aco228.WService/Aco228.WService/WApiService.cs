@@ -3,6 +3,7 @@ using Aco228.WService.Attributes;
 using Aco228.WService.Exceptions;
 using Aco228.WService.Extensions;
 using Aco228.WService.Implementation;
+using Aco228.WService.Infrastructure;
 
 namespace Aco228.WService;
 
@@ -79,6 +80,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         httpResponseMessage.EnsureSuccessStatusCode();
         
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
+        ServiceConfiguration?.OnStringReceived(methodType, url!, httpContent, stringResponse);
 
         if (typeof(TResult) == typeof(IWService))
             return default;
@@ -86,12 +88,15 @@ public class WApiService<T> : DispatchProxy where T : IWService
         if (typeof(TResult).IsPrimitive || typeof(TResult) == typeof(string) || typeof(TResult) == typeof(decimal))
             return (TResult)Convert.ChangeType(stringResponse, typeof(TResult));
         
-        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse) 
+        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WJsonSettings.DefaultOptions) 
                ?? throw new InvalidOperationException("Deserialization returned null");
     }
 
     private Task<HttpResponseMessage> ExecuteCommand(WMethodType wMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
     {
+        if(!string.IsNullOrEmpty(ServiceConfiguration?.UserAgent))
+            HttpClient.DefaultRequestHeaders.Add("User-Agent", ServiceConfiguration.UserAgent);
+        
         switch (wMethodType)
         {
             case WMethodType.GET:
