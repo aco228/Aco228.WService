@@ -132,7 +132,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         throw exception;
     }
 
-    internal static WApiService<T> Create<T>() where T : IWService
+    internal static WApiService<T> Create()
     {
         var service = Create<T, WApiService<T>>() as WApiService<T>;
         return service;
