@@ -7,6 +7,7 @@ public class RequestException : Exception
     public Exception Original { get; init; }
     public string Url { get; init; }
     public HttpContent? Request { get; init; }
+    public string? RequestContent { get; init; }
     public HttpResponseMessage Response { get; init; }
 
     public HttpRequestException HttpRequestException => Original as HttpRequestException;
@@ -15,13 +16,15 @@ public class RequestException : Exception
     public RequestException(
         Exception original, 
         string url, 
-        HttpContent? request, 
+        HttpContent? request,
+        string? requestContent,
         HttpResponseMessage responseMessage)
         : base(null, original)
     {
         Original = original;
         Url = url;
         Request = request;
+        RequestContent = requestContent;
         Response = responseMessage;
     }
 

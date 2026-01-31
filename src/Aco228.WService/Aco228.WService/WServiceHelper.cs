@@ -5,17 +5,15 @@ namespace Aco228.WService;
 
 public static class WServiceHelper
 {
-    private static HttpClient _httpClient = new();
-    
-    public static T GetWebService<T>() where T : class, IWService
+    public static T GetWebService<T>(HttpClient httpClient) where T : class, IWService
     {
         var service = WApiService<T>.Create();
-        service.Configure(_httpClient);
+        service.Configure(httpClient);
         
         return service as T;
     }
 
-    public static object? GetWebServiceByType(Type type, HttpClient? httpClient)
+    public static object GetWebServiceByType(Type type, HttpClient httpClient)
     {
         // Validate that the type is an interface and implements IWService
         if (!type.IsInterface)
@@ -53,7 +51,7 @@ public static class WServiceHelper
             throw new InvalidOperationException($"Cannot find Configure method for {type.Name}");
         
         // Call Configure
-        configureMethod.Invoke(proxy, new object[] { httpClient ?? _httpClient });
+        configureMethod.Invoke(proxy, new object[] { httpClient });
         return proxy;
     }
 }

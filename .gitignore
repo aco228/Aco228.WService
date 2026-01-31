@@ -313,3 +313,5 @@ proxy_reset.txt
 ssh.pem
 ssh.txt
 src/Arbitrage.DesktopConsoleTests/DesktopConsoleProgram.cs
+problems.md
+.claude/settings.local.json

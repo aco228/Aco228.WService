@@ -9,8 +9,7 @@ public static class ServiceExtensions
 {
     public static void RegisterWebServices(
         this IServiceCollection services, 
-        Assembly assembly,
-        HttpClient? httpClient = null)
+        Assembly assembly)
     {
         var assemblyTypes = assembly.GetTypes();
         foreach (var assemblyType in assemblyTypes)
@@ -32,10 +31,10 @@ public static class ServiceExtensions
                 injectionType = serviceConfiguration.InjectionType;
             }
 
+            var httpClient = new HttpClient();
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
-                var client = httpClient ?? new HttpClient();
-                var serviceByType = WServiceHelper.GetWebServiceByType(assemblyType, client);
+                var serviceByType = WServiceHelper.GetWebServiceByType(assemblyType, httpClient);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
                 

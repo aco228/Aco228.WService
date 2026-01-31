@@ -25,7 +25,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
                 throw new InvalidOperationException();   
         }
         HttpClient = httpClient;
-        ServiceConfiguration?.Prepare(HttpClient);
+        ServiceConfiguration?.InternalPrepare(HttpClient);
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -75,14 +75,15 @@ public class WApiService<T> : DispatchProxy where T : IWService
         WMethodType methodType = methodAttribute.Type;
         
         var httpContent = HttpContentExtensions.ExtractBodyContent(methodType, targetMethod, args);
-        ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent);
+        var httpContentString = httpContent != null ? await httpContent.ReadAsStringAsync(cancellationToken) : string.Empty;
+        
+        ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
         
         HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
-        EnsureSuccessStatusCode(httpResponseMessage, url!, httpContent);
-        httpResponseMessage.EnsureSuccessStatusCode();
+        EnsureSuccessStatusCode(httpResponseMessage, url!, httpContentString, httpContent);
         
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
-        ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpResponseMessage, stringResponse);
+        ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpContentString, httpResponseMessage, stringResponse);
 
         if (typeof(TResult) == typeof(IWService))
             return default;
@@ -96,9 +97,6 @@ public class WApiService<T> : DispatchProxy where T : IWService
 
     private Task<HttpResponseMessage> ExecuteCommand(WMethodType wMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        if(!string.IsNullOrEmpty(ServiceConfiguration?.UserAgent))
-            HttpClient.DefaultRequestHeaders.Add("User-Agent", ServiceConfiguration.UserAgent);
-        
         switch (wMethodType)
         {
             case WMethodType.GET:
@@ -116,7 +114,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         }
     }
 
-    internal void EnsureSuccessStatusCode(HttpResponseMessage response, string url, HttpContent? request)
+    private void EnsureSuccessStatusCode(HttpResponseMessage response, string url, string? httpContentString, HttpContent? request)
     {
         try
         {
@@ -124,7 +122,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         }
         catch (Exception exception)
         {
-            OnException(new RequestException(exception, url, request, response));
+            OnException(new RequestException(exception, url, request, httpContentString, response));
         }
     }
     
