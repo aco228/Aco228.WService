@@ -3,14 +3,19 @@ using Aco228.WService.Exceptions;
 
 namespace Aco228.WService;
 
-public class WServiceConf
+public abstract class WServiceConf
 {
-    public virtual string BaseUrl { get; }
+    public abstract string BaseUrl { get; }
     public virtual string UserAgent { get; }
     public virtual CancellationToken CancellationToken { get; }
+    
+    public virtual void Prepare(HttpClient httpClient) { }
 
-    public virtual void OnUrlCreated(WMethodType methodType, string url, HttpContent? httpContent) { }
+    
+    public virtual void OnBeforeRequest(WMethodType methodType, ref string url, ref HttpContent? httpContent) { }
+    
     public virtual void OnException(RequestException exception){}
-    public virtual void OnStringReceived(WMethodType methodType, string url, HttpContent? httpContent, string stringResponse) { }
+    public virtual void OnResponseReceived(WMethodType methodType, string url, HttpContent? httpContent, HttpResponseMessage response, string stringResponse) { }
+    
 
 }

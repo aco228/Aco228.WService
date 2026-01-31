@@ -15,7 +15,7 @@ public static class WServiceHelper
         return service as T;
     }
 
-    public static object? GetWebServiceByType(Type type, HttpClient? httpClient = null)
+    public static object? GetWebServiceByType(Type type, HttpClient? httpClient)
     {
         // Validate that the type is an interface and implements IWService
         if (!type.IsInterface)

@@ -25,6 +25,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
                 throw new InvalidOperationException();   
         }
         HttpClient = httpClient;
+        ServiceConfiguration?.Prepare(HttpClient);
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -65,6 +66,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         if (!StringUrlExtensions.GetRequestUrl(BaseUrl, methodAttribute.Url, targetMethod!.GetParameters(), args, out var url))
             throw new InvalidOperationException($"Url in wrong format: {url}");
         
+        
         CancellationToken cancellationToken = 
             (CancellationToken?)args?.FirstOrDefault(x => x?.GetType() == typeof(CancellationToken)) 
             ?? ServiceConfiguration?.CancellationToken 
@@ -73,14 +75,14 @@ public class WApiService<T> : DispatchProxy where T : IWService
         WMethodType methodType = methodAttribute.Type;
         
         var httpContent = HttpContentExtensions.ExtractBodyContent(methodType, targetMethod, args);
-        ServiceConfiguration?.OnUrlCreated(methodType, url!, httpContent);
+        ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent);
         
-        var httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
+        HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
         EnsureSuccessStatusCode(httpResponseMessage, url!, httpContent);
         httpResponseMessage.EnsureSuccessStatusCode();
         
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
-        ServiceConfiguration?.OnStringReceived(methodType, url!, httpContent, stringResponse);
+        ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpResponseMessage, stringResponse);
 
         if (typeof(TResult) == typeof(IWService))
             return default;

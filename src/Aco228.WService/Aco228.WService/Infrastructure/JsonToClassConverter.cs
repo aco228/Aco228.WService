@@ -1,16 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text;
 using System.Text.Json.Nodes;
 
-public interface IWCreateClassModelService
-{
-    string ConvertJsonToClass(string jsonString, string className);
-}
 
-public class WCreateClassModelService : IWCreateClassModelService
+public static class JsonToClassConverter 
 {
     private static readonly HashSet<string> ReservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,7 +17,7 @@ public class WCreateClassModelService : IWCreateClassModelService
         "ushort", "using", "virtual", "void", "volatile", "while"
     };
 
-    public string ConvertJsonToClass(string jsonString, string className)
+    public static string ConvertJsonToClass(string jsonString, string className)
     {
         try
         {
@@ -68,7 +60,7 @@ public class WCreateClassModelService : IWCreateClassModelService
     /// <summary>
     /// Reorders generated classes so the main class appears first.
     /// </summary>
-    private string ReorderClasses(string allClassesContent, string mainClassName)
+    private static string ReorderClasses(string allClassesContent, string mainClassName)
     {
         var lines = allClassesContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         
@@ -129,7 +121,7 @@ public class WCreateClassModelService : IWCreateClassModelService
     /// Merges all objects in an array to get a complete schema.
     /// Handles missing properties and null values across array elements.
     /// </summary>
-    private JsonObject MergeArrayObjects(JsonArray jsonArray)
+    private static JsonObject MergeArrayObjects(JsonArray jsonArray)
     {
         var mergedObject = new JsonObject();
         var propertyTypes = new Dictionary<string, (string type, bool isNullable)>();
@@ -216,7 +208,7 @@ public class WCreateClassModelService : IWCreateClassModelService
     /// <summary>
     /// Gets the base type of a JSON value without considering nullability.
     /// </summary>
-    private string GetBaseType(JsonNode token)
+    private static string GetBaseType(JsonNode token)
     {
         if (token == null)
             return "object";
@@ -247,7 +239,7 @@ public class WCreateClassModelService : IWCreateClassModelService
         return "object";
     }
 
-    private void GenerateClass(JsonObject jsonObject, string className, StringBuilder classDefinitions, HashSet<string> generatedClasses)
+    private static void GenerateClass(JsonObject jsonObject, string className, StringBuilder classDefinitions, HashSet<string> generatedClasses)
     {
         // Avoid duplicate class generation
         if (generatedClasses.Contains(className))
@@ -294,7 +286,7 @@ public class WCreateClassModelService : IWCreateClassModelService
         classDefinitions.AppendLine();
     }
 
-    private string GetPropertyType(JsonNode token, string propertyName, StringBuilder classDefinitions, HashSet<string> generatedClasses)
+    private static string GetPropertyType(JsonNode token, string propertyName, StringBuilder classDefinitions, HashSet<string> generatedClasses)
     {
         if (token == null)
             return "object";
@@ -338,12 +330,12 @@ public class WCreateClassModelService : IWCreateClassModelService
         return "object";
     }
 
-    private bool IsReservedWord(string word)
+    private static bool IsReservedWord(string word)
     {
         return ReservedWords.Contains(word);
     }
 
-    private string GetSafePropertyName(string name)
+    private static string GetSafePropertyName(string name)
     {
         if (IsReservedWord(name))
         {
@@ -352,7 +344,7 @@ public class WCreateClassModelService : IWCreateClassModelService
         return name;
     }
 
-    private string ToPascalCase(string str)
+    private static string ToPascalCase(string str)
     {
         if (string.IsNullOrEmpty(str))
             return str;

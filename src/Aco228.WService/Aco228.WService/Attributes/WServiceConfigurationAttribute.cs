@@ -7,9 +7,16 @@ public enum WServiceDependencyInjectionType
     SCOPED,
 }
 
-public class WServiceAttribute : Attribute
+public class WServiceConfigurationAttribute : Attribute
 {
     public Type Type { get; set; }
     public WServiceDependencyInjectionType InjectionType { get; set; } =  WServiceDependencyInjectionType.SINGLETON;
+
+    public WServiceConfigurationAttribute() { }
+
+    public WServiceConfigurationAttribute(Type type)
+    {
+        Type = type;
+    }
     
 }

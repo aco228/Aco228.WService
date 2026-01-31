@@ -13,7 +13,6 @@ public static class ServiceExtensions
         HttpClient? httpClient = null)
     {
         var assemblyTypes = assembly.GetTypes();
-
         foreach (var assemblyType in assemblyTypes)
         {
             if (!assemblyType.IsInterface)
@@ -26,7 +25,7 @@ public static class ServiceExtensions
                 continue;
 
             WServiceDependencyInjectionType injectionType = WServiceDependencyInjectionType.SINGLETON;
-            var serviceConfiguration = assemblyType.GetCustomAttribute<WServiceAttribute>();
+            var serviceConfiguration = assemblyType.GetCustomAttribute<WServiceConfigurationAttribute>();
             
             if (serviceConfiguration != null)
             {
@@ -35,7 +34,7 @@ public static class ServiceExtensions
 
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
-                var client = httpClient ?? provider.GetService<HttpClient>() ?? new HttpClient();
+                var client = httpClient ?? new HttpClient();
                 var serviceByType = WServiceHelper.GetWebServiceByType(assemblyType, client);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
