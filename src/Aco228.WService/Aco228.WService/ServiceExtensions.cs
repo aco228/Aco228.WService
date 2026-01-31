@@ -1,13 +1,14 @@
 ﻿using System.Reflection;
 using Aco228.WService.Attributes;
-using Aco228.WService.Implementation;
+using Aco228.WService.Base;
+using Aco228.WService.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aco228.WService;
 
 public static class ServiceExtensions
 {
-    public static void RegisterWebServices(
+    public static void RegisterApiServices(
         this IServiceCollection services, 
         Assembly assembly)
     {
@@ -17,14 +18,14 @@ public static class ServiceExtensions
             if (!assemblyType.IsInterface)
                 continue;
             
-            if (!typeof(IWebApiService).IsAssignableFrom(assemblyType))
+            if (!typeof(IApiService).IsAssignableFrom(assemblyType))
                 continue;
             
-            if (assemblyType == typeof(IWebApiService))
+            if (assemblyType == typeof(IApiService))
                 continue;
 
-            WebServiceDependencyInjectionType injectionType = WebServiceDependencyInjectionType.SINGLETON;
-            var serviceConfiguration = assemblyType.GetCustomAttribute<WebApiServiceDecoratorAttribute>();
+            ApiServiceDependencyInjectionType injectionType = ApiServiceDependencyInjectionType.SINGLETON;
+            var serviceConfiguration = assemblyType.GetCustomAttribute<ApiServiceDecoratorAttribute>();
             
             if (serviceConfiguration != null)
             {
@@ -34,7 +35,7 @@ public static class ServiceExtensions
             var httpClient = new HttpClient();
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
-                var serviceByType = WServiceHelper.GetWebServiceByType(assemblyType, httpClient);
+                var serviceByType = ApiServiceHelper.GetApiServiceByType(assemblyType, httpClient);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
                 
@@ -44,13 +45,13 @@ public static class ServiceExtensions
 
             switch (injectionType)
             {
-                case WebServiceDependencyInjectionType.SINGLETON:
+                case ApiServiceDependencyInjectionType.SINGLETON:
                     services.AddSingleton(assemblyType, implementationFactory);
                     break;
-                case WebServiceDependencyInjectionType.SCOPED:
+                case ApiServiceDependencyInjectionType.SCOPED:
                     services.AddScoped(assemblyType, implementationFactory);
                     break;
-                case WebServiceDependencyInjectionType.TRANSIENT:
+                case ApiServiceDependencyInjectionType.TRANSIENT:
                     services.AddTransient(assemblyType, implementationFactory);
                     break;
                 default:

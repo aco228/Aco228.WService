@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-internal class StringUrlExtensions
+internal class StringUrlHelper
 {
     public static bool GetRequestUrl(
         string? baseUrl, 

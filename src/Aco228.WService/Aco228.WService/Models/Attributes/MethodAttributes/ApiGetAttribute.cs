@@ -1,4 +1,4 @@
-﻿namespace Aco228.WService;
+﻿namespace Aco228.WService.Models.Attributes.MethodAttributes;
 
 public class ApiGetAttribute : WebApiMethodAttribute
 {

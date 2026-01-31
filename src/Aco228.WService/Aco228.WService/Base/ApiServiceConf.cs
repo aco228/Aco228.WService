@@ -1,8 +1,8 @@
 ﻿using Aco228.WService.Exceptions;
 
-namespace Aco228.WService;
+namespace Aco228.WService.Base;
 
-public abstract class WebApiServiceConf
+public abstract class ApiServiceConf
 {
     public abstract string BaseUrl { get; }
     public virtual string UserAgent { get; }

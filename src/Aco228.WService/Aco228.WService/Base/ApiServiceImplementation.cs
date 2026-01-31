@@ -1,16 +1,15 @@
 ﻿using System.Reflection;
-using Aco228.WService.Attributes;
 using Aco228.WService.Exceptions;
 using Aco228.WService.Extensions;
-using Aco228.WService.Implementation;
+using Aco228.WService.Helpers;
 using Aco228.WService.Infrastructure;
 
-namespace Aco228.WService;
+namespace Aco228.WService.Base;
 
-public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiService
+public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 {
     internal HttpClient HttpClient { get; set; }
-    internal WebApiServiceConf? ServiceConfiguration { get; private set; }
+    internal ApiServiceConf? ServiceConfiguration { get; private set; }
     internal Type ImplementationType { get; private set; }
     internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? ""; 
 
@@ -20,7 +19,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
         var attribute = ImplementationType.FindServiceAttribute();
         if (attribute != null)
         {
-            ServiceConfiguration = Activator.CreateInstance(attribute.Type) as WebApiServiceConf;
+            ServiceConfiguration = Activator.CreateInstance(attribute.Type) as ApiServiceConf;
             if (ServiceConfiguration == null)
                 throw new InvalidOperationException();   
         }
@@ -55,7 +54,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
     }
 
     internal Task InvokeAsyncVoid(MethodInfo targetMethod, object?[]? args)
-        => InvokeAsyncGeneric<IWebApiService>(targetMethod, args);
+        => InvokeAsyncGeneric<IApiService>(targetMethod, args);
 
     internal async Task<TResult?> InvokeAsyncGeneric<TResult>(MethodInfo? targetMethod, object?[]? args)
     {        
@@ -63,7 +62,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
         if(methodAttribute == null)
             throw new InvalidOperationException("Method must have WMethod attribute");
 
-        if (!StringUrlExtensions.GetRequestUrl(BaseUrl, methodAttribute.Url, targetMethod!.GetParameters(), args, out var url))
+        if (!StringUrlHelper.GetRequestUrl(BaseUrl, methodAttribute.Url, targetMethod!.GetParameters(), args, out var url))
             throw new InvalidOperationException($"Url in wrong format: {url}");
         
         
@@ -74,7 +73,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
 
         WebApiMethodType methodType = methodAttribute.Type;
         
-        var httpContent = HttpContentExtensions.ExtractBodyContent(methodType, targetMethod, args);
+        var httpContent = HttpContentHelpers.ExtractBodyContent(methodType, targetMethod, args);
         var httpContentString = httpContent != null ? await httpContent.ReadAsStringAsync(cancellationToken) : string.Empty;
         
         ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
@@ -85,7 +84,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
         ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpContentString, httpResponseMessage, stringResponse);
 
-        if (typeof(TResult) == typeof(IWebApiService))
+        if (typeof(TResult) == typeof(IApiService))
             return default;
         
         if (IsPrimitiveOrSimpleType(typeof(TResult)))
@@ -126,7 +125,7 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
         }
     }
     
-    protected virtual void OnException(WebApiRequestException exception)
+    private void OnException(WebApiRequestException exception)
     {
         ServiceConfiguration?.OnException(exception);
         throw exception;
@@ -223,9 +222,9 @@ public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiSer
         }
     }
 
-    internal static WebApiServiceImplementation<T> Create()
+    internal static ApiServiceImplementation<T> Create()
     {
-        var service = Create<T, WebApiServiceImplementation<T>>() as WebApiServiceImplementation<T>;
+        var service = Create<T, ApiServiceImplementation<T>>() as ApiServiceImplementation<T>;
         return service;
     }
 }

@@ -1,17 +1,17 @@
 ﻿using System.Reflection;
 using Aco228.WService.Attributes;
-using Aco228.WService.Implementation;
+using Aco228.WService.Base;
 
 namespace Aco228.WService.Extensions;
 
 internal static class TypeExtensions
 {
-    public static WebApiServiceDecoratorAttribute? FindServiceAttribute(this Type type)
+    public static ApiServiceDecoratorAttribute? FindServiceAttribute(this Type type)
     {
-        if (type == typeof(IWebApiService))
+        if (type == typeof(IApiService))
             return null;
 
-        var attribute = type.GetCustomAttribute<WebApiServiceDecoratorAttribute>();
+        var attribute = type.GetCustomAttribute<ApiServiceDecoratorAttribute>();
         if (attribute != null)
             return attribute;
 

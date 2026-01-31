@@ -1,9 +1,8 @@
 ﻿using System.Reflection;
-using Aco228.WService.Attributes;
 
-namespace Aco228.WService.Extensions;
+namespace Aco228.WService.Helpers;
 
-internal static class HttpContentExtensions
+internal static class HttpContentHelpers
 {
     public static HttpContent? ExtractBodyContent(WebApiMethodType methodType, MethodInfo method, object?[]? args)
     {

@@ -1,33 +1,33 @@
 ﻿using System.Reflection;
-using Aco228.WService.Implementation;
+using Aco228.WService.Base;
 
-namespace Aco228.WService;
+namespace Aco228.WService.Helpers;
 
-public static class WServiceHelper
+public static class ApiServiceHelper
 {
-    public static T GetWebService<T>(HttpClient httpClient) where T : class, IWebApiService
+    public static T GetApiService<T>(HttpClient httpClient) where T : class, IApiService
     {
-        var service = WebApiServiceImplementation<T>.Create();
+        var service = ApiServiceImplementation<T>.Create();
         service.Configure(httpClient);
         
         return service as T;
     }
 
-    public static object GetWebServiceByType(Type type, HttpClient httpClient)
+    public static object GetApiServiceByType(Type type, HttpClient httpClient)
     {
         // Validate that the type is an interface and implements IWService
         if (!type.IsInterface)
             throw new ArgumentException($"Type {type.Name} must be an interface", nameof(type));
         
-        if (!typeof(IWebApiService).IsAssignableFrom(type))
+        if (!typeof(IApiService).IsAssignableFrom(type))
             throw new ArgumentException($"Type {type.Name} must implement IWService", nameof(type));
         
         // Create WApiService<T> type
-        var proxyType = typeof(WebApiServiceImplementation<>).MakeGenericType(type);
+        var proxyType = typeof(ApiServiceImplementation<>).MakeGenericType(type);
         
         // Get the Create method
         var createMethod = proxyType.GetMethod(
-            nameof(WebApiServiceImplementation<>.Create), 
+            nameof(ApiServiceImplementation<>.Create), 
             BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
             null,
             Type.EmptyTypes,
@@ -44,7 +44,7 @@ public static class WServiceHelper
         
         // Get the Configure method
         var configureMethod = proxyType.GetMethod(
-            nameof(WebApiServiceImplementation<>.Configure),
+            nameof(ApiServiceImplementation<>.Configure),
             BindingFlags.NonPublic | BindingFlags.Instance);
         
         if (configureMethod == null)
