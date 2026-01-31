@@ -53,15 +53,11 @@ public class JsonObjectPropertyConverter<T> : JsonConverter<T> where T : new()
                     var value = GetNestedJsonValue(root, objectAttr.Name);
                     if (value != null)
                     {
-                        try
+                        if (TryConvertValue(value, prop.PropertyType, out var convertedValue))
                         {
-                            var convertedValue = Convert.ChangeType(value, prop.PropertyType);
                             prop.SetValue(instance, convertedValue);
                         }
-                        catch
-                        {
-                            // Ignore conversion errors
-                        }
+                        // If conversion fails, property remains at default value
                     }
                     continue;
                 }
@@ -77,9 +73,13 @@ public class JsonObjectPropertyConverter<T> : JsonConverter<T> where T : new()
                         var value = JsonSerializer.Deserialize(element.GetRawText(), prop.PropertyType, options);
                         prop.SetValue(instance, value);
                     }
-                    catch
+                    catch (JsonException)
                     {
-                        // Ignore deserialization errors
+                        // Ignore JSON deserialization errors - property remains at default value
+                    }
+                    catch (NotSupportedException)
+                    {
+                        // Ignore unsupported type errors - property remains at default value
                     }
                 }
             }
@@ -235,5 +235,164 @@ public class JsonObjectPropertyConverter<T> : JsonConverter<T> where T : new()
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Attempts to convert a value to the target type, handling nullable types, enums, and common types.
+    /// Returns true if conversion succeeds, false otherwise.
+    /// </summary>
+    private static bool TryConvertValue(object? value, Type targetType, out object? result)
+    {
+        result = null;
+
+        if (value == null)
+        {
+            // Null can only be assigned to reference types or nullable value types
+            if (!targetType.IsValueType || Nullable.GetUnderlyingType(targetType) != null)
+            {
+                result = null;
+                return true;
+            }
+            return false;
+        }
+
+        // Get the underlying type if nullable (e.g., int? -> int)
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        try
+        {
+            // If types match exactly, no conversion needed
+            if (value.GetType() == underlyingType)
+            {
+                result = value;
+                return true;
+            }
+
+            // Handle enums
+            if (underlyingType.IsEnum)
+            {
+                if (value is string stringValue)
+                {
+                    result = Enum.Parse(underlyingType, stringValue, ignoreCase: true);
+                    return true;
+                }
+                else if (value is int || value is long || value is byte || value is short)
+                {
+                    result = Enum.ToObject(underlyingType, value);
+                    return true;
+                }
+                return false;
+            }
+
+            // Handle Guid
+            if (underlyingType == typeof(Guid))
+            {
+                if (value is string guidString)
+                {
+                    if (Guid.TryParse(guidString, out var guid))
+                    {
+                        result = guid;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Handle DateTime
+            if (underlyingType == typeof(DateTime))
+            {
+                if (value is string dateString)
+                {
+                    if (DateTime.TryParse(dateString, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var date))
+                    {
+                        result = date;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Handle DateTimeOffset
+            if (underlyingType == typeof(DateTimeOffset))
+            {
+                if (value is string dateOffsetString)
+                {
+                    if (DateTimeOffset.TryParse(dateOffsetString, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var dateOffset))
+                    {
+                        result = dateOffset;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Handle TimeSpan
+            if (underlyingType == typeof(TimeSpan))
+            {
+                if (value is string timeSpanString)
+                {
+                    if (TimeSpan.TryParse(timeSpanString, System.Globalization.CultureInfo.InvariantCulture, out var timeSpan))
+                    {
+                        result = timeSpan;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Handle boolean with flexible parsing
+            if (underlyingType == typeof(bool))
+            {
+                if (value is string boolString)
+                {
+                    if (bool.TryParse(boolString, out var boolResult))
+                    {
+                        result = boolResult;
+                        return true;
+                    }
+
+                    // Support common boolean representations
+                    var normalized = boolString.Trim().ToLowerInvariant();
+                    if (normalized == "1" || normalized == "yes" || normalized == "y")
+                    {
+                        result = true;
+                        return true;
+                    }
+                    if (normalized == "0" || normalized == "no" || normalized == "n")
+                    {
+                        result = false;
+                        return true;
+                    }
+                }
+                else if (value is int intValue)
+                {
+                    result = intValue != 0;
+                    return true;
+                }
+                return false;
+            }
+
+            // For other types, try Convert.ChangeType with culture-safe conversion
+            result = Convert.ChangeType(value, underlyingType, System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (InvalidCastException)
+        {
+            return false;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 }

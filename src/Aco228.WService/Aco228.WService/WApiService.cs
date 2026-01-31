@@ -88,8 +88,8 @@ public class WApiService<T> : DispatchProxy where T : IWService
         if (typeof(TResult) == typeof(IWService))
             return default;
         
-        if (typeof(TResult).IsPrimitive || typeof(TResult) == typeof(string) || typeof(TResult) == typeof(decimal))
-            return (TResult)Convert.ChangeType(stringResponse, typeof(TResult));
+        if (IsPrimitiveOrSimpleType(typeof(TResult)))
+            return ConvertPrimitiveType<TResult>(stringResponse);
         
         return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WJsonSettings.DefaultOptions) 
                ?? throw new InvalidOperationException("Deserialization returned null");
@@ -130,6 +130,97 @@ public class WApiService<T> : DispatchProxy where T : IWService
     {
         ServiceConfiguration?.OnException(exception);
         throw exception;
+    }
+
+    private static bool IsPrimitiveOrSimpleType(Type type)
+    {
+        // Get the underlying type if nullable
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+
+        return underlyingType.IsPrimitive
+               || underlyingType == typeof(string)
+               || underlyingType == typeof(decimal)
+               || underlyingType == typeof(Guid)
+               || underlyingType == typeof(DateTime)
+               || underlyingType == typeof(DateTimeOffset)
+               || underlyingType == typeof(TimeSpan);
+    }
+
+    private static TResult? ConvertPrimitiveType<TResult>(string? stringResponse)
+    {
+        var targetType = typeof(TResult);
+
+        // Handle null or empty responses
+        if (string.IsNullOrEmpty(stringResponse))
+        {
+            // If the type is nullable, return null
+            if (Nullable.GetUnderlyingType(targetType) != null || !targetType.IsValueType)
+                return default;
+
+            throw new InvalidOperationException($"Cannot convert empty response to non-nullable type '{targetType.Name}'");
+        }
+
+        // Get the underlying type if nullable (e.g., int? -> int)
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        try
+        {
+            // Special handling for common types
+            if (underlyingType == typeof(bool))
+            {
+                // Support case-insensitive boolean parsing
+                if (bool.TryParse(stringResponse, out bool boolResult))
+                    return (TResult)(object)boolResult;
+
+                // Support common boolean representations
+                var normalized = stringResponse.Trim().ToLowerInvariant();
+                if (normalized == "1" || normalized == "yes" || normalized == "y")
+                    return (TResult)(object)true;
+                if (normalized == "0" || normalized == "no" || normalized == "n")
+                    return (TResult)(object)false;
+
+                throw new FormatException($"Cannot convert '{stringResponse}' to boolean");
+            }
+
+            if (underlyingType == typeof(Guid))
+            {
+                return (TResult)(object)Guid.Parse(stringResponse);
+            }
+
+            if (underlyingType == typeof(DateTime))
+            {
+                return (TResult)(object)DateTime.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (underlyingType == typeof(DateTimeOffset))
+            {
+                return (TResult)(object)DateTimeOffset.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (underlyingType == typeof(TimeSpan))
+            {
+                return (TResult)(object)TimeSpan.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (underlyingType == typeof(string))
+            {
+                return (TResult)(object)stringResponse;
+            }
+
+            // For numeric types and other primitives, use Convert.ChangeType
+            var convertedValue = Convert.ChangeType(stringResponse, underlyingType, System.Globalization.CultureInfo.InvariantCulture);
+            return (TResult)convertedValue;
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to convert response '{stringResponse}' to type '{targetType.Name}': {ex.Message}", ex);
+        }
+        catch (OverflowException ex)
+        {
+            throw new InvalidOperationException(
+                $"Value '{stringResponse}' is outside the valid range for type '{targetType.Name}': {ex.Message}", ex);
+        }
     }
 
     internal static WApiService<T> Create()
