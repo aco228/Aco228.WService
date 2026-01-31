@@ -1,6 +1,6 @@
 ﻿namespace Aco228.WService;
 
-public enum WMethodType
+public enum WebApiMethodType
 {
     GET,
     POST,

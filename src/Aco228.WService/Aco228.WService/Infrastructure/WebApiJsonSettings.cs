@@ -2,7 +2,7 @@
 
 namespace Aco228.WService.Infrastructure;
 
-public static class WJsonSettings
+public static class WebApiJsonSettings
 {
     public static JsonSerializerOptions DefaultOptions { get; } = CreateDefaultOptions();
 

@@ -2,7 +2,7 @@
 
 namespace Aco228.WService.Exceptions;
 
-public class RequestException : Exception
+public class WebApiRequestException : Exception
 {
     public Exception Original { get; init; }
     public string Url { get; init; }
@@ -13,7 +13,7 @@ public class RequestException : Exception
     public HttpRequestException HttpRequestException => Original as HttpRequestException;
     public HttpStatusCode? HttpStatusCode => HttpRequestException?.StatusCode;
         
-    public RequestException(
+    public WebApiRequestException(
         Exception original, 
         string url, 
         HttpContent? request,

@@ -5,9 +5,9 @@ namespace Aco228.WService;
 
 public static class WServiceHelper
 {
-    public static T GetWebService<T>(HttpClient httpClient) where T : class, IWService
+    public static T GetWebService<T>(HttpClient httpClient) where T : class, IWebApiService
     {
-        var service = WApiService<T>.Create();
+        var service = WebApiServiceImplementation<T>.Create();
         service.Configure(httpClient);
         
         return service as T;
@@ -19,15 +19,15 @@ public static class WServiceHelper
         if (!type.IsInterface)
             throw new ArgumentException($"Type {type.Name} must be an interface", nameof(type));
         
-        if (!typeof(IWService).IsAssignableFrom(type))
+        if (!typeof(IWebApiService).IsAssignableFrom(type))
             throw new ArgumentException($"Type {type.Name} must implement IWService", nameof(type));
         
         // Create WApiService<T> type
-        var proxyType = typeof(WApiService<>).MakeGenericType(type);
+        var proxyType = typeof(WebApiServiceImplementation<>).MakeGenericType(type);
         
         // Get the Create method
         var createMethod = proxyType.GetMethod(
-            nameof(WApiService<>.Create), 
+            nameof(WebApiServiceImplementation<>.Create), 
             BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
             null,
             Type.EmptyTypes,
@@ -44,7 +44,7 @@ public static class WServiceHelper
         
         // Get the Configure method
         var configureMethod = proxyType.GetMethod(
-            nameof(WApiService<>.Configure),
+            nameof(WebApiServiceImplementation<>.Configure),
             BindingFlags.NonPublic | BindingFlags.Instance);
         
         if (configureMethod == null)

@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json.Nodes;
 
-
 public static class JsonToClassConverter 
 {
     private static readonly HashSet<string> ReservedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

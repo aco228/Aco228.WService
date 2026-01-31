@@ -5,10 +5,10 @@ namespace Aco228.WService.Extensions;
 
 internal static class HttpContentExtensions
 {
-    public static HttpContent? ExtractBodyContent(WMethodType methodType, MethodInfo method, object?[]? args)
+    public static HttpContent? ExtractBodyContent(WebApiMethodType methodType, MethodInfo method, object?[]? args)
     {
         // GET and DELETE don't have bodies
-        if (methodType == WMethodType.GET || methodType == WMethodType.DELETE)
+        if (methodType == WebApiMethodType.GET || methodType == WebApiMethodType.DELETE)
             return null;
 
         if (args == null || args.Length == 0)

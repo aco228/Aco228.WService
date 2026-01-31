@@ -17,14 +17,14 @@ public static class ServiceExtensions
             if (!assemblyType.IsInterface)
                 continue;
             
-            if (!typeof(IWService).IsAssignableFrom(assemblyType))
+            if (!typeof(IWebApiService).IsAssignableFrom(assemblyType))
                 continue;
             
-            if (assemblyType == typeof(IWService))
+            if (assemblyType == typeof(IWebApiService))
                 continue;
 
-            WServiceDependencyInjectionType injectionType = WServiceDependencyInjectionType.SINGLETON;
-            var serviceConfiguration = assemblyType.GetCustomAttribute<WServiceConfigurationAttribute>();
+            WebServiceDependencyInjectionType injectionType = WebServiceDependencyInjectionType.SINGLETON;
+            var serviceConfiguration = assemblyType.GetCustomAttribute<WebApiServiceDecoratorAttribute>();
             
             if (serviceConfiguration != null)
             {
@@ -44,13 +44,13 @@ public static class ServiceExtensions
 
             switch (injectionType)
             {
-                case WServiceDependencyInjectionType.SINGLETON:
+                case WebServiceDependencyInjectionType.SINGLETON:
                     services.AddSingleton(assemblyType, implementationFactory);
                     break;
-                case WServiceDependencyInjectionType.SCOPED:
+                case WebServiceDependencyInjectionType.SCOPED:
                     services.AddScoped(assemblyType, implementationFactory);
                     break;
-                case WServiceDependencyInjectionType.TRANSIENT:
+                case WebServiceDependencyInjectionType.TRANSIENT:
                     services.AddTransient(assemblyType, implementationFactory);
                     break;
                 default:

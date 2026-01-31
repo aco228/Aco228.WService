@@ -6,12 +6,12 @@ namespace Aco228.WService.Extensions;
 
 internal static class TypeExtensions
 {
-    public static WServiceConfigurationAttribute? FindServiceAttribute(this Type type)
+    public static WebApiServiceDecoratorAttribute? FindServiceAttribute(this Type type)
     {
-        if (type == typeof(IWService))
+        if (type == typeof(IWebApiService))
             return null;
 
-        var attribute = type.GetCustomAttribute<WServiceConfigurationAttribute>();
+        var attribute = type.GetCustomAttribute<WebApiServiceDecoratorAttribute>();
         if (attribute != null)
             return attribute;
 

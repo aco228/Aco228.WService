@@ -7,10 +7,10 @@ using Aco228.WService.Infrastructure;
 
 namespace Aco228.WService;
 
-public class WApiService<T> : DispatchProxy where T : IWService
+public class WebApiServiceImplementation<T> : DispatchProxy where T : IWebApiService
 {
     internal HttpClient HttpClient { get; set; }
-    internal WServiceConf? ServiceConfiguration { get; private set; }
+    internal WebApiServiceConf? ServiceConfiguration { get; private set; }
     internal Type ImplementationType { get; private set; }
     internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? ""; 
 
@@ -20,7 +20,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
         var attribute = ImplementationType.FindServiceAttribute();
         if (attribute != null)
         {
-            ServiceConfiguration = Activator.CreateInstance(attribute.Type) as WServiceConf;
+            ServiceConfiguration = Activator.CreateInstance(attribute.Type) as WebApiServiceConf;
             if (ServiceConfiguration == null)
                 throw new InvalidOperationException();   
         }
@@ -55,11 +55,11 @@ public class WApiService<T> : DispatchProxy where T : IWService
     }
 
     internal Task InvokeAsyncVoid(MethodInfo targetMethod, object?[]? args)
-        => InvokeAsyncGeneric<IWService>(targetMethod, args);
+        => InvokeAsyncGeneric<IWebApiService>(targetMethod, args);
 
     internal async Task<TResult?> InvokeAsyncGeneric<TResult>(MethodInfo? targetMethod, object?[]? args)
     {        
-        var methodAttribute = targetMethod?.GetCustomAttribute<WMethodAttribute>();
+        var methodAttribute = targetMethod?.GetCustomAttribute<WebApiMethodAttribute>();
         if(methodAttribute == null)
             throw new InvalidOperationException("Method must have WMethod attribute");
 
@@ -72,7 +72,7 @@ public class WApiService<T> : DispatchProxy where T : IWService
             ?? ServiceConfiguration?.CancellationToken 
             ?? CancellationToken.None;
 
-        WMethodType methodType = methodAttribute.Type;
+        WebApiMethodType methodType = methodAttribute.Type;
         
         var httpContent = HttpContentExtensions.ExtractBodyContent(methodType, targetMethod, args);
         var httpContentString = httpContent != null ? await httpContent.ReadAsStringAsync(cancellationToken) : string.Empty;
@@ -85,32 +85,32 @@ public class WApiService<T> : DispatchProxy where T : IWService
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
         ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpContentString, httpResponseMessage, stringResponse);
 
-        if (typeof(TResult) == typeof(IWService))
+        if (typeof(TResult) == typeof(IWebApiService))
             return default;
         
         if (IsPrimitiveOrSimpleType(typeof(TResult)))
             return ConvertPrimitiveType<TResult>(stringResponse);
         
-        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WJsonSettings.DefaultOptions) 
+        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WebApiJsonSettings.DefaultOptions) 
                ?? throw new InvalidOperationException("Deserialization returned null");
     }
 
-    private Task<HttpResponseMessage> ExecuteCommand(WMethodType wMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
+    private Task<HttpResponseMessage> ExecuteCommand(WebApiMethodType webApiMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        switch (wMethodType)
+        switch (webApiMethodType)
         {
-            case WMethodType.GET:
+            case WebApiMethodType.GET:
                 return HttpClient.GetAsync(url, cancellationToken);
-            case WMethodType.POST:
+            case WebApiMethodType.POST:
                 return HttpClient.PostAsync(url, content, cancellationToken);
-            case WMethodType.PUT:
+            case WebApiMethodType.PUT:
                 return HttpClient.PutAsync(url, content, cancellationToken);
-            case WMethodType.DELETE:
+            case WebApiMethodType.DELETE:
                 return HttpClient.DeleteAsync(url, cancellationToken);
-            case WMethodType.PATCH:
+            case WebApiMethodType.PATCH:
                 return HttpClient.PatchAsync(url, content, cancellationToken);
             default:
-                throw new NotImplementedException($"{wMethodType} is not implemented");
+                throw new NotImplementedException($"{webApiMethodType} is not implemented");
         }
     }
 
@@ -122,11 +122,11 @@ public class WApiService<T> : DispatchProxy where T : IWService
         }
         catch (Exception exception)
         {
-            OnException(new RequestException(exception, url, request, httpContentString, response));
+            OnException(new WebApiRequestException(exception, url, request, httpContentString, response));
         }
     }
     
-    protected virtual void OnException(RequestException exception)
+    protected virtual void OnException(WebApiRequestException exception)
     {
         ServiceConfiguration?.OnException(exception);
         throw exception;
@@ -223,9 +223,9 @@ public class WApiService<T> : DispatchProxy where T : IWService
         }
     }
 
-    internal static WApiService<T> Create()
+    internal static WebApiServiceImplementation<T> Create()
     {
-        var service = Create<T, WApiService<T>>() as WApiService<T>;
+        var service = Create<T, WebApiServiceImplementation<T>>() as WebApiServiceImplementation<T>;
         return service;
     }
 }
