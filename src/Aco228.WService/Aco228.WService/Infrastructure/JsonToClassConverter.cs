@@ -16,7 +16,7 @@ public static class JsonToClassConverter
         "ushort", "using", "virtual", "void", "volatile", "while"
     };
 
-    public static string ConvertJsonToClass(string jsonString, string className)
+    public static string ConvertJsonToClass(string className, string jsonString)
     {
         try
         {
