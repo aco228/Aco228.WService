@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Aco228.WService.Infrastructure;
 
 public static class JsonSerializerExtensions
 {

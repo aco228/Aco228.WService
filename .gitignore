@@ -315,3 +315,4 @@ ssh.txt
 src/Arbitrage.DesktopConsoleTests/DesktopConsoleProgram.cs
 problems.md
 .claude/settings.local.json
+src/report.md

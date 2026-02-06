@@ -2,6 +2,8 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+namespace Aco228.WService.Helpers;
+
 internal class StringUrlHelper
 {
     public static bool GetRequestUrl(

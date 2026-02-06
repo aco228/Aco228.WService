@@ -8,6 +8,7 @@ public class WebApiRequestException : Exception
     public string Url { get; init; }
     public HttpContent? Request { get; init; }
     public string? RequestContent { get; init; }
+    public string? ResponseContent { get; init; }
     public HttpResponseMessage Response { get; init; }
 
     public HttpRequestException HttpRequestException => Original as HttpRequestException;
@@ -18,6 +19,7 @@ public class WebApiRequestException : Exception
         string url, 
         HttpContent? request,
         string? requestContent,
+        string? responseContent,
         HttpResponseMessage responseMessage)
         : base(null, original)
     {
@@ -36,9 +38,9 @@ public class WebApiRequestException : Exception
                 Environment.NewLine + Environment.NewLine + Environment.NewLine
                 + $"URL = {Url}"
                 + Environment.NewLine + Environment.NewLine + Environment.NewLine
-                + $"REQUEST = {Request?.ReadAsStringAsync().Result}"
+                + $"REQUEST = {RequestContent}"
                 + Environment.NewLine + Environment.NewLine + Environment.NewLine
-                + $"RESPONSE = {Response?.Content.ReadAsStringAsync().Result}"
+                + $"RESPONSE = {ResponseContent}"
                 + Environment.NewLine + Environment.NewLine + Environment.NewLine;
             return msg;
         }

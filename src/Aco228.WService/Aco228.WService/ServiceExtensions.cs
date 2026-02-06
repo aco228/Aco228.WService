@@ -13,6 +13,8 @@ public static class ServiceExtensions
         Assembly assembly)
     {
         var assemblyTypes = assembly.GetTypes();
+        var httpClient = new HttpClient();
+        
         foreach (var assemblyType in assemblyTypes)
         {
             if (!assemblyType.IsInterface)
@@ -32,14 +34,13 @@ public static class ServiceExtensions
                 injectionType = serviceConfiguration.InjectionType;
             }
 
-            var httpClient = new HttpClient();
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
                 var serviceByType = ApiServiceHelper.GetApiServiceByType(assemblyType, httpClient);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
                 
-                Console.WriteLine("Registered.WebService::" +  assemblyType.Name);
+                // Console.WriteLine("Registered.WebService::" +  assemblyType.Name);
                 return serviceByType;
             });
 

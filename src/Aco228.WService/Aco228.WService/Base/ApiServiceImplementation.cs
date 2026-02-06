@@ -1,17 +1,23 @@
-﻿using System.Reflection;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
 using Aco228.WService.Exceptions;
 using Aco228.WService.Extensions;
 using Aco228.WService.Helpers;
 using Aco228.WService.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aco228.WService.Base;
 
 public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 {
+    private static MethodInfo? _invokeAsyncGenericBase;
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _genericMethodCache = new();
+    private static readonly ConcurrentDictionary<MethodInfo, (WebApiMethodAttribute Attribute, ParameterInfo[] Parameters)> _methodMetadataCache = new();
+
     internal HttpClient HttpClient { get; set; }
     internal ApiServiceConf? ServiceConfiguration { get; private set; }
     internal Type ImplementationType { get; private set; }
-    internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? ""; 
+    internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? "";
 
     internal void Configure(HttpClient httpClient)
     {
@@ -21,7 +27,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         {
             ServiceConfiguration = Activator.CreateInstance(attribute.Type) as ApiServiceConf;
             if (ServiceConfiguration == null)
-                throw new InvalidOperationException();   
+                throw new InvalidOperationException();
         }
         HttpClient = httpClient;
         ServiceConfiguration?.InternalPrepare(HttpClient);
@@ -31,25 +37,26 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
     {
         if(targetMethod == null)
             throw new InvalidOperationException("targetMethod is null");
-        
+
         var returnType = targetMethod.ReturnType;
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
         {
             var resultType = returnType.GetGenericArguments()[0];
-            var method = GetType()
-                .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .FirstOrDefault(m => m.Name == nameof(InvokeAsyncGeneric) && m.IsGenericMethodDefinition);
-    
-            if (method == null)
-                throw new InvalidOperationException("InvokeAsyncGeneric method not found!");
-    
-            var genericMethod = method.MakeGenericMethod(resultType);
+            var genericMethod = _genericMethodCache.GetOrAdd(resultType, type =>
+            {
+                _invokeAsyncGenericBase ??= typeof(ApiServiceImplementation<T>)
+                    .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                    .First(m => m.Name == nameof(InvokeAsyncGeneric) && m.IsGenericMethodDefinition);
+
+                return _invokeAsyncGenericBase.MakeGenericMethod(type);
+            });
+
             return genericMethod.Invoke(this, new object?[] { targetMethod, args });
         }
 
         if (returnType == typeof(Task))
             return InvokeAsyncVoid(targetMethod, args);
-        
+
         throw new NotSupportedException("Only Task and Task<T> return types are supported");
     }
 
@@ -57,12 +64,18 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         => InvokeAsyncGeneric<IApiService>(targetMethod, args);
 
     internal async Task<TResult?> InvokeAsyncGeneric<TResult>(MethodInfo? targetMethod, object?[]? args)
-    {        
-        var methodAttribute = targetMethod?.GetCustomAttribute<WebApiMethodAttribute>();
+    {
+        var (methodAttribute, parameters) = _methodMetadataCache.GetOrAdd(targetMethod!, method =>
+        {
+            var attr = method.GetCustomAttribute<WebApiMethodAttribute>();
+            var pars = method.GetParameters();
+            return (attr!, pars);
+        });
+
         if(methodAttribute == null)
             throw new InvalidOperationException("Method must have WMethod attribute");
 
-        if (!StringUrlHelper.GetRequestUrl(BaseUrl, methodAttribute.Url, targetMethod!.GetParameters(), args, out var url))
+        if (!StringUrlHelper.GetRequestUrl(BaseUrl, methodAttribute.Url, parameters, args, out var url))
             throw new InvalidOperationException($"Url in wrong format: {url}");
         
         
@@ -79,9 +92,10 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
         
         HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
-        EnsureSuccessStatusCode(httpResponseMessage, url!, httpContentString, httpContent);
-        
+
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
+
+        EnsureSuccessStatusCode(httpResponseMessage, url!, httpContentString, stringResponse, httpContent);
         ServiceConfiguration?.OnResponseReceived(methodType, url!, httpContent, httpContentString, httpResponseMessage, stringResponse);
 
         if (typeof(TResult) == typeof(IApiService))
@@ -113,7 +127,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         }
     }
 
-    private void EnsureSuccessStatusCode(HttpResponseMessage response, string url, string? httpContentString, HttpContent? request)
+    private void EnsureSuccessStatusCode(HttpResponseMessage response, string url, string? httpContentString, string? responseString, HttpContent? request)
     {
         try
         {
@@ -121,7 +135,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         }
         catch (Exception exception)
         {
-            OnException(new WebApiRequestException(exception, url, request, httpContentString, response));
+            OnException(new WebApiRequestException(exception, url, request, httpContentString, responseString, response));
         }
     }
     

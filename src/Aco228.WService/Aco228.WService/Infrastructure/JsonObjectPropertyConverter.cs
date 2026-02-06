@@ -3,6 +3,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aco228.WService.Attributes;
 
+namespace Aco228.WService.Infrastructure;
+
 /// <summary>
 /// A generic JSON converter that supports nested property paths via [JsonObjectProperty] attribute.
 /// Example: [JsonObjectProperty("owner.url")] will extract the value from json.owner.url
