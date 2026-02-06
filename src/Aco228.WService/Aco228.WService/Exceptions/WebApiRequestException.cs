@@ -26,6 +26,7 @@ public class WebApiRequestException : Exception
         Original = original;
         Url = url;
         Request = request;
+        ResponseContent = responseContent;
         RequestContent = requestContent;
         Response = responseMessage;
     }

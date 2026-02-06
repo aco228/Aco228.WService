@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Aco228.WService.Models.Attributes.ParameterAttributes;
 
 namespace Aco228.WService.Helpers;
 
@@ -62,16 +63,44 @@ internal class StringUrlHelper
             }
         }
         
+        AppendApiToQueryParameters(parameters, args, ref result);
+
         if (!Uri.TryCreate(result, UriKind.Absolute, out Uri? uriResult))
             return false;
-        
-        if (uriResult.Scheme != Uri.UriSchemeHttp && 
+
+        if (uriResult.Scheme != Uri.UriSchemeHttp &&
             uriResult.Scheme != Uri.UriSchemeHttps)
             return false;
 
         return true;
     }
     
+    private static void AppendApiToQueryParameters(ParameterInfo[] parameters, object?[]? args, ref string result)
+    {
+        var queryParts = new List<string>();
+
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            if (parameters[i].GetCustomAttribute<ApiToQueryAttribute>() == null)
+                continue;
+
+            var arg = args?[i];
+            if (arg == null)
+                continue;
+
+            var paramName = parameters[i].Name ?? $"param{i}";
+            var formatted = FormatSimpleValue(arg);
+            if (formatted != null)
+                queryParts.Add($"{Uri.EscapeDataString(paramName)}={Uri.EscapeDataString(formatted)}");
+        }
+
+        if (queryParts.Count > 0)
+        {
+            var separator = result.Contains('?') ? "&" : "?";
+            result += separator + string.Join("&", queryParts);
+        }
+    }
+
     private static string BuildQueryStringFromObject(object obj)
     {
         var queryParams = new List<string>();

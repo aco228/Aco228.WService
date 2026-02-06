@@ -85,9 +85,11 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 
         WebApiMethodType methodType = methodAttribute.Type;
         
-        var httpContent = HttpContentHelpers.ExtractBodyContent(methodType, targetMethod, args);
-        var httpContentString = httpContent != null ? await httpContent.ReadAsStringAsync(cancellationToken) : string.Empty;
-        
+        var httpContent = HttpContentHelpers.ExtractBodyContent(methodType, parameters, args);
+        var httpContentString = httpContent is not MultipartFormDataContent && httpContent != null
+            ? await httpContent.ReadAsStringAsync(cancellationToken)
+            : string.Empty;
+
         ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
         
         HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
