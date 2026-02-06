@@ -6,7 +6,6 @@ internal static class HttpContentHelpers
 {
     public static HttpContent? ExtractBodyContent(WebApiMethodType methodType, MethodInfo method, object?[]? args)
     {
-        // GET and DELETE don't have bodies
         if (methodType == WebApiMethodType.GET || methodType == WebApiMethodType.DELETE)
             return null;
 
@@ -14,55 +13,100 @@ internal static class HttpContentHelpers
             return new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
 
         var parameters = method.GetParameters();
+        var fileParams = new List<(string Name, object Value)>();
+        var bodyParams = new List<(string Name, object Value)>();
 
-        // Collect all class/record parameters (skip primitives, strings, CancellationToken)
-        var bodyObjects = new List<object>();
+        ClassifyParameters(parameters, args, fileParams, bodyParams);
 
+        if (fileParams.Count > 0)
+            return BuildMultipartContent(fileParams, bodyParams);
+
+        return BuildJsonContent(bodyParams);
+    }
+
+    private static void ClassifyParameters(
+        ParameterInfo[] parameters,
+        object?[] args,
+        List<(string Name, object Value)> fileParams,
+        List<(string Name, object Value)> bodyParams)
+    {
         for (int i = 0; i < parameters.Length; i++)
         {
             var paramType = parameters[i].ParameterType;
+            var paramName = parameters[i].Name ?? $"param{i}";
             var arg = args[i];
 
             if (arg == null)
                 continue;
 
-            // Skip CancellationToken
             if (paramType == typeof(CancellationToken))
                 continue;
 
-            // Skip value types and strings (they should be in URL parameters)
             if (paramType.IsValueType || paramType == typeof(string))
                 continue;
 
-            // This is a class/record - add to body
-            bodyObjects.Add(arg);
+            if (IsFileType(paramType))
+                fileParams.Add((paramName, arg));
+            else
+                bodyParams.Add((paramName, arg));
         }
+    }
 
-        // No body objects found
-        if (bodyObjects.Count == 0)
+    private static bool IsFileType(Type type)
+        => type == typeof(FileInfo)
+        || type == typeof(byte[])
+        || typeof(Stream).IsAssignableFrom(type);
+
+    private static HttpContent BuildJsonContent(List<(string Name, object Value)> bodyParams)
+    {
+        if (bodyParams.Count == 0)
             return new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
 
-        // Single object - serialize directly
-        if (bodyObjects.Count == 1)
+        if (bodyParams.Count == 1)
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(bodyObjects[0]);
+            var json = System.Text.Json.JsonSerializer.Serialize(bodyParams[0].Value);
             return new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         }
 
-        // Multiple objects - merge their properties into one JSON object
-        var mergedObject = new Dictionary<string, object?>();
-
-        foreach (var obj in bodyObjects)
+        var merged = new Dictionary<string, object?>();
+        foreach (var (_, value) in bodyParams)
         {
-            var properties = obj.GetType().GetProperties();
-            foreach (var prop in properties)
+            foreach (var prop in value.GetType().GetProperties())
+                merged[prop.Name] = prop.GetValue(value);
+        }
+
+        var mergedJson = System.Text.Json.JsonSerializer.Serialize(merged);
+        return new StringContent(mergedJson, System.Text.Encoding.UTF8, "application/json");
+    }
+
+    private static HttpContent BuildMultipartContent(
+        List<(string Name, object Value)> fileParams,
+        List<(string Name, object Value)> bodyParams)
+    {
+        var multipart = new MultipartFormDataContent();
+
+        foreach (var (name, value) in fileParams)
+        {
+            switch (value)
             {
-                var value = prop.GetValue(obj);
-                mergedObject[prop.Name] = value;
+                case FileInfo fileInfo:
+                    multipart.Add(new StreamContent(fileInfo.OpenRead()), name, fileInfo.Name);
+                    break;
+                case Stream stream:
+                    multipart.Add(new StreamContent(stream), name, name);
+                    break;
+                case byte[] bytes:
+                    multipart.Add(new ByteArrayContent(bytes), name, name);
+                    break;
             }
         }
 
-        var mergedJson = System.Text.Json.JsonSerializer.Serialize(mergedObject);
-        return new StringContent(mergedJson, System.Text.Encoding.UTF8, "application/json");
+        foreach (var (name, value) in bodyParams)
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(value);
+            multipart.Add(new StringContent(json, System.Text.Encoding.UTF8, "application/json"), name);
+        }
+
+        return multipart;
     }
 }

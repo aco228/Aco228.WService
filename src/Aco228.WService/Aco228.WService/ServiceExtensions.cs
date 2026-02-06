@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
 using Aco228.WService.Attributes;
 using Aco228.WService.Base;
 using Aco228.WService.Helpers;
@@ -8,12 +9,15 @@ namespace Aco228.WService;
 
 public static class ServiceExtensions
 {
+    private static IHttpClientFactory? _httpClientFactory;
+    private static ConcurrentDictionary<Type, HttpClient> _httpClientCache = new();
+    
     public static void RegisterApiServices(
         this IServiceCollection services, 
         Assembly assembly)
     {
         var assemblyTypes = assembly.GetTypes();
-        var httpClient = new HttpClient();
+        var defaultHttpClient = new HttpClient();
         
         foreach (var assemblyType in assemblyTypes)
         {
@@ -36,6 +40,7 @@ public static class ServiceExtensions
 
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
+                var httpClient = GetHttpClient(assemblyType, defaultHttpClient);
                 var serviceByType = ApiServiceHelper.GetApiServiceByType(assemblyType, httpClient);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
@@ -59,5 +64,33 @@ public static class ServiceExtensions
                     throw new InvalidOperationException($"Cannot register {assemblyType.Name} for  {injectionType}");
             }
         }
+    }
+
+    private static HttpClient GetHttpClient(Type type, HttpClient defaultHttpClient)
+    {
+        var attr = GetApiServiceDecoratorAttribute(type);
+        if (attr == null)
+            return defaultHttpClient;
+        
+        if (_httpClientCache.TryGetValue(type, out var httpClient))
+            return httpClient;
+
+        var client = new HttpClient();
+        _httpClientCache.TryAdd(type, client);
+        return client;
+    }
+
+    private static ApiServiceDecoratorAttribute? GetApiServiceDecoratorAttribute(Type type)
+    {
+        var attr = type.GetCustomAttribute<ApiServiceDecoratorAttribute>();
+        if (attr != null) return attr;
+        foreach (var interfaceImpl in type.GetInterfaces())
+        {
+            var interfaceAttr = GetApiServiceDecoratorAttribute(interfaceImpl);
+            if(interfaceAttr != null)
+                return interfaceAttr;
+        }
+
+        return null;
     }
 }

@@ -4,7 +4,6 @@ using Aco228.WService.Exceptions;
 using Aco228.WService.Extensions;
 using Aco228.WService.Helpers;
 using Aco228.WService.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Aco228.WService.Base;
 
