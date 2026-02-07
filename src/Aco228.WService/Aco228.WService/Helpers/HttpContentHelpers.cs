@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Reflection;
+using Aco228.WService.Infrastructure;
 using Aco228.WService.Models.Attributes.ParameterAttributes;
 
 namespace Aco228.WService.Helpers;
@@ -76,7 +77,7 @@ internal static class HttpContentHelpers
 
         if (bodyParams.Count == 1)
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(bodyParams[0].Value);
+            var json = System.Text.Json.JsonSerializer.Serialize(bodyParams[0].Value, WebApiJsonSettings.SerializerOptions);
             return new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         }
 
@@ -87,7 +88,7 @@ internal static class HttpContentHelpers
                 merged[prop.Name] = prop.GetValue(value);
         }
 
-        var mergedJson = System.Text.Json.JsonSerializer.Serialize(merged);
+        var mergedJson = System.Text.Json.JsonSerializer.Serialize(merged, WebApiJsonSettings.SerializerOptions);
         return new StringContent(mergedJson, System.Text.Encoding.UTF8, "application/json");
     }
 
@@ -107,7 +108,7 @@ internal static class HttpContentHelpers
 
         foreach (var (name, value) in bodyParams)
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(value);
+            var json = System.Text.Json.JsonSerializer.Serialize(value, WebApiJsonSettings.SerializerOptions);
             multipart.Add(new StringContent(json, System.Text.Encoding.UTF8, "application/json"), name);
         }
 
