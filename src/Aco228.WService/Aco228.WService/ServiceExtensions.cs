@@ -17,7 +17,10 @@ public static class ServiceExtensions
         Assembly assembly)
     {
         var assemblyTypes = assembly.GetTypes();
-        var defaultHttpClient = new HttpClient();
+        var defaultHttpClient = new HttpClient()
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
         
         foreach (var assemblyType in assemblyTypes)
         {
@@ -75,7 +78,10 @@ public static class ServiceExtensions
         if (_httpClientCache.TryGetValue(type, out var httpClient))
             return httpClient;
 
-        var client = new HttpClient();
+        var client = new HttpClient()
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
         _httpClientCache.TryAdd(type, client);
         return client;
     }
