@@ -28,8 +28,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
             if (ServiceConfiguration == null)
                 throw new InvalidOperationException();
         }
-        HttpClient = httpClient;
-        ServiceConfiguration?.InternalPrepare(HttpClient);
+        HttpClient = ServiceConfiguration?.InternalPrepare(httpClient) ?? httpClient;
     }
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)

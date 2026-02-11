@@ -9,17 +9,16 @@ public abstract class ApiServiceConf
     public virtual CancellationToken CancellationToken { get; }
 
 
-    internal void InternalPrepare(HttpClient httpClient)
+    internal HttpClient InternalPrepare(HttpClient httpClient)
     {
-        if(!string.IsNullOrEmpty(UserAgent))
+        if (!string.IsNullOrEmpty(UserAgent))
             httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
         
-        Prepare(httpClient);
+        return Prepare(httpClient);
     }
-    
-    public virtual void Prepare(HttpClient httpClient) { }
 
-    
+    public virtual HttpClient Prepare(HttpClient httpClient) => httpClient;
+
     public virtual void OnBeforeRequest(WebApiMethodType methodType, ref string url, ref HttpContent? httpContent, string? httpContentString) { }
     
     public virtual void OnException(WebApiRequestException exception){}
