@@ -11,4 +11,8 @@
       <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\..\Aco228.Common\src\Aco228.Common\Aco228.Common.csproj" />
+    </ItemGroup>
+
 </Project>

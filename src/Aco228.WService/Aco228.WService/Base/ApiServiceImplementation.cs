@@ -1,9 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using Aco228.Common;
 using Aco228.WService.Exceptions;
 using Aco228.WService.Extensions;
 using Aco228.WService.Helpers;
 using Aco228.WService.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aco228.WService.Base;
 
@@ -24,7 +26,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         var attribute = ImplementationType.FindServiceAttribute();
         if (attribute != null)
         {
-            ServiceConfiguration = Activator.CreateInstance(attribute.Type) as ApiServiceConf;
+            ServiceConfiguration = ServiceProviderHelper.ConstructByType(attribute.Type) as ApiServiceConf;
             if (ServiceConfiguration == null)
                 throw new InvalidOperationException();
         }
