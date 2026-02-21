@@ -15,7 +15,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
     private static readonly ConcurrentDictionary<Type, MethodInfo> _genericMethodCache = new();
     private static readonly ConcurrentDictionary<MethodInfo, (WebApiMethodAttribute Attribute, ParameterInfo[] Parameters)> _methodMetadataCache = new();
 
-    internal HttpClient HttpClient { get; set; }
+    public HttpClient HttpClient { get; private set; }
     internal ApiServiceConf? ServiceConfiguration { get; private set; }
     internal Type ImplementationType { get; private set; }
     internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? "";
@@ -35,8 +35,12 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
-        if(targetMethod == null)
+        if (targetMethod == null)
             throw new InvalidOperationException("targetMethod is null");
+
+        // Handle synchronous property getters defined on IApiService
+        if (targetMethod.ReturnType != typeof(Task) && !targetMethod.ReturnType.IsGenericType)
+            return HandleSynchronousMember(targetMethod);
 
         var returnType = targetMethod.ReturnType;
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
@@ -57,7 +61,23 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         if (returnType == typeof(Task))
             return InvokeAsyncVoid(targetMethod, args);
 
-        throw new NotSupportedException("Only Task and Task<T> return types are supported");
+        throw new NotSupportedException($"Return type '{returnType.Name}' is not supported. Only Task, Task<T>, and synchronous properties are supported.");
+    }
+
+    private object? HandleSynchronousMember(MethodInfo targetMethod)
+    {
+        // Property getters follow the convention "get_PropertyName"
+        if (!targetMethod.Name.StartsWith("get_"))
+            throw new NotSupportedException($"Synchronous method '{targetMethod.Name}' is not supported. Only Task and Task<T> return types are supported.");
+
+        var propertyName = targetMethod.Name["get_".Length..];
+        var property = typeof(ApiServiceImplementation<T>)
+            .GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
+
+        if (property == null)
+            throw new NotSupportedException($"Property '{propertyName}' is not exposed by {nameof(ApiServiceImplementation<T>)}.");
+
+        return property.GetValue(this);
     }
 
     internal Task InvokeAsyncVoid(MethodInfo targetMethod, object?[]? args)
@@ -72,27 +92,26 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
             return (attr!, pars);
         });
 
-        if(methodAttribute == null)
+        if (methodAttribute == null)
             throw new InvalidOperationException("Method must have WMethod attribute");
 
         if (!StringUrlHelper.GetRequestUrl(BaseUrl, methodAttribute.Url, parameters, args, out var url))
             throw new InvalidOperationException($"Url in wrong format: {url}");
-        
-        
-        CancellationToken cancellationToken = 
-            (CancellationToken?)args?.FirstOrDefault(x => x?.GetType() == typeof(CancellationToken)) 
-            ?? ServiceConfiguration?.CancellationToken 
+
+        CancellationToken cancellationToken =
+            (CancellationToken?)args?.FirstOrDefault(x => x?.GetType() == typeof(CancellationToken))
+            ?? ServiceConfiguration?.CancellationToken
             ?? CancellationToken.None;
 
         WebApiMethodType methodType = methodAttribute.Type;
-        
+
         var httpContent = HttpContentHelpers.ExtractBodyContent(methodType, parameters, args);
         var httpContentString = httpContent is not MultipartFormDataContent && httpContent != null
             ? await httpContent.ReadAsStringAsync(cancellationToken)
             : string.Empty;
 
         ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
-        
+
         HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);
 
         var stringResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
@@ -102,31 +121,25 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 
         if (typeof(TResult) == typeof(IApiService))
             return default;
-        
+
         if (IsPrimitiveOrSimpleType(typeof(TResult)))
             return ConvertPrimitiveType<TResult>(stringResponse);
-        
-        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WebApiJsonSettings.DefaultOptions) 
+
+        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WebApiJsonSettings.DefaultOptions)
                ?? throw new InvalidOperationException("Deserialization returned null");
     }
 
     private Task<HttpResponseMessage> ExecuteCommand(WebApiMethodType webApiMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        switch (webApiMethodType)
+        return webApiMethodType switch
         {
-            case WebApiMethodType.GET:
-                return HttpClient.GetAsync(url, cancellationToken);
-            case WebApiMethodType.POST:
-                return HttpClient.PostAsync(url, content, cancellationToken);
-            case WebApiMethodType.PUT:
-                return HttpClient.PutAsync(url, content, cancellationToken);
-            case WebApiMethodType.DELETE:
-                return HttpClient.DeleteAsync(url, cancellationToken);
-            case WebApiMethodType.PATCH:
-                return HttpClient.PatchAsync(url, content, cancellationToken);
-            default:
-                throw new NotImplementedException($"{webApiMethodType} is not implemented");
-        }
+            WebApiMethodType.GET    => HttpClient.GetAsync(url, cancellationToken),
+            WebApiMethodType.POST   => HttpClient.PostAsync(url, content, cancellationToken),
+            WebApiMethodType.PUT    => HttpClient.PutAsync(url, content, cancellationToken),
+            WebApiMethodType.DELETE => HttpClient.DeleteAsync(url, cancellationToken),
+            WebApiMethodType.PATCH  => HttpClient.PatchAsync(url, content, cancellationToken),
+            _ => throw new NotImplementedException($"{webApiMethodType} is not implemented")
+        };
     }
 
     private void EnsureSuccessStatusCode(HttpResponseMessage response, string url, string? httpContentString, string? responseString, HttpContent? request)
@@ -140,7 +153,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
             OnException(new WebApiRequestException(exception, url, request, httpContentString, responseString, response));
         }
     }
-    
+
     private void OnException(WebApiRequestException exception)
     {
         ServiceConfiguration?.OnException(exception);
@@ -149,7 +162,6 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
 
     private static bool IsPrimitiveOrSimpleType(Type type)
     {
-        // Get the underlying type if nullable
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
         return underlyingType.IsPrimitive
@@ -165,29 +177,23 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
     {
         var targetType = typeof(TResult);
 
-        // Handle null or empty responses
         if (string.IsNullOrEmpty(stringResponse))
         {
-            // If the type is nullable, return null
             if (Nullable.GetUnderlyingType(targetType) != null || !targetType.IsValueType)
                 return default;
 
             throw new InvalidOperationException($"Cannot convert empty response to non-nullable type '{targetType.Name}'");
         }
 
-        // Get the underlying type if nullable (e.g., int? -> int)
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
         try
         {
-            // Special handling for common types
             if (underlyingType == typeof(bool))
             {
-                // Support case-insensitive boolean parsing
                 if (bool.TryParse(stringResponse, out bool boolResult))
                     return (TResult)(object)boolResult;
 
-                // Support common boolean representations
                 var normalized = stringResponse.Trim().ToLowerInvariant();
                 if (normalized == "1" || normalized == "yes" || normalized == "y")
                     return (TResult)(object)true;
@@ -198,33 +204,21 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
             }
 
             if (underlyingType == typeof(Guid))
-            {
                 return (TResult)(object)Guid.Parse(stringResponse);
-            }
 
             if (underlyingType == typeof(DateTime))
-            {
                 return (TResult)(object)DateTime.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
-            }
 
             if (underlyingType == typeof(DateTimeOffset))
-            {
                 return (TResult)(object)DateTimeOffset.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
-            }
 
             if (underlyingType == typeof(TimeSpan))
-            {
                 return (TResult)(object)TimeSpan.Parse(stringResponse, System.Globalization.CultureInfo.InvariantCulture);
-            }
 
             if (underlyingType == typeof(string))
-            {
                 return (TResult)(object)stringResponse;
-            }
 
-            // For numeric types and other primitives, use Convert.ChangeType
-            var convertedValue = Convert.ChangeType(stringResponse, underlyingType, System.Globalization.CultureInfo.InvariantCulture);
-            return (TResult)convertedValue;
+            return (TResult)Convert.ChangeType(stringResponse, underlyingType, System.Globalization.CultureInfo.InvariantCulture);
         }
         catch (FormatException ex)
         {

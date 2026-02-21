@@ -2,5 +2,5 @@
 
 public interface IApiService
 {
-    // public HttpClient HttpClient { get; }
+    public HttpClient HttpClient { get; }
 }
