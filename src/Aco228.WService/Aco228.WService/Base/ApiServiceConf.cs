@@ -20,7 +20,7 @@ public abstract class ApiServiceConf
     public virtual HttpClient Prepare(HttpClient httpClient) => httpClient;
 
     public virtual void OnBeforeRequest(WebApiMethodType methodType, ref string url, ref HttpContent? httpContent, string? httpContentString) { }
-    
+
     public virtual void OnException(WebApiRequestException exception){}
     public virtual void OnResponseReceived(WebApiMethodType methodType, string url, HttpContent? httpContent, string? httpContentString, HttpResponseMessage response, string stringResponse) { }
     
