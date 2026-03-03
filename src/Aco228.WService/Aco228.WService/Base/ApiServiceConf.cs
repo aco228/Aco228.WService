@@ -23,6 +23,7 @@ public abstract class ApiServiceConf
 
     public virtual void OnException(WebApiRequestException exception){}
     public virtual void OnResponseReceived(WebApiMethodType methodType, string url, HttpContent? httpContent, string? httpContentString, HttpResponseMessage response, string stringResponse) { }
+    public virtual void OnResponseObjectReceived<TObj>(WebApiMethodType methodType, string url, HttpContent? httpContent, string? httpContentString, HttpResponseMessage response, TObj responseObject) { }
     
 
 }

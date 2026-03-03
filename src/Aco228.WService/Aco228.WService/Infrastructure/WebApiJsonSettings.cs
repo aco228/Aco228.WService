@@ -9,7 +9,8 @@ public static class WebApiJsonSettings
     public static JsonSerializerOptions SerializerOptions { get; } = new JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     private static JsonSerializerOptions CreateDefaultOptions()

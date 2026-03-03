@@ -125,8 +125,9 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
         if (IsPrimitiveOrSimpleType(typeof(TResult)))
             return ConvertPrimitiveType<TResult>(stringResponse);
 
-        return System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WebApiJsonSettings.DefaultOptions)
-               ?? throw new InvalidOperationException("Deserialization returned null");
+        var responseObject = System.Text.Json.JsonSerializer.Deserialize<TResult>(stringResponse, WebApiJsonSettings.DefaultOptions) ?? throw new InvalidOperationException("Deserialization returned null");
+        ServiceConfiguration?.OnResponseObjectReceived<TResult>(methodType, url!, httpContent, httpContentString, httpResponseMessage, responseObject);;
+        return responseObject;
     }
 
     private Task<HttpResponseMessage> ExecuteCommand(WebApiMethodType webApiMethodType, string url, HttpContent? content, CancellationToken cancellationToken)
