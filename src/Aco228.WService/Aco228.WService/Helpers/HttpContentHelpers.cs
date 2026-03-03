@@ -108,6 +108,9 @@ internal static class HttpContentHelpers
 
         foreach (var (name, value) in bodyParams)
         {
+            if (IsFileType(value.GetType()))
+                continue;
+            
             var json = System.Text.Json.JsonSerializer.Serialize(value, WebApiJsonSettings.SerializerOptions);
             multipart.Add(new StringContent(json, System.Text.Encoding.UTF8, "application/json"), name);
         }

@@ -3,4 +3,5 @@
 public interface IApiService
 {
     public HttpClient HttpClient { get; }
+    public ApiServiceConf? ServiceConfiguration { get; }
 }

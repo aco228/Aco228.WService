@@ -16,7 +16,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
     private static readonly ConcurrentDictionary<MethodInfo, (WebApiMethodAttribute Attribute, ParameterInfo[] Parameters)> _methodMetadataCache = new();
 
     public HttpClient HttpClient { get; private set; }
-    internal ApiServiceConf? ServiceConfiguration { get; private set; }
+    public ApiServiceConf? ServiceConfiguration { get; private set; }
     internal Type ImplementationType { get; private set; }
     internal string BaseUrl => ServiceConfiguration?.BaseUrl ?? "";
 
@@ -159,7 +159,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
     {
         ServiceConfiguration?.OnException(exception);
         throw exception;
-    }
+    }   
 
     private static bool IsPrimitiveOrSimpleType(Type type)
     {
