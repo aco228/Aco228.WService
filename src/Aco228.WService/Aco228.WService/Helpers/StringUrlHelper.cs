@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Aco228.Common.Extensions;
 using Aco228.WService.Models.Attributes.ParameterAttributes;
 
 namespace Aco228.WService.Helpers;
@@ -19,7 +20,7 @@ internal class StringUrlHelper
         if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(concatUrl) || concatUrl.Length < 3)
             return false;
 
-        concatUrl = concatUrl.Replace("//", "/");
+        concatUrl = concatUrl.Remove("[IGNORE]").Replace("//", "/");
         if(baseUrl.EndsWith("/") && concatUrl.StartsWith("/"))
             concatUrl = concatUrl.Substring(1);
         
