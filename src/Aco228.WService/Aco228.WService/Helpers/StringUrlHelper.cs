@@ -58,7 +58,10 @@ internal class StringUrlHelper
                         if (paramType.IsClass && paramType != typeof(string))
                             continue;
                         
-                        result = result.Replace(placeholder, Uri.EscapeDataString(arg.ToString() ?? ""));
+                        if(parameters[i].GetCustomAttribute<ApiToRouteAttribute>() != null)
+                            result = result.Replace(placeholder, arg.ToString());
+                        else
+                            result = result.Replace(placeholder, Uri.EscapeDataString(arg.ToString() ?? ""));
                     }
                 }
             }
