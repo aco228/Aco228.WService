@@ -8,7 +8,6 @@ public abstract class ApiServiceConf
     public virtual string UserAgent { get; }
     public virtual CancellationToken CancellationToken { get; }
 
-
     internal HttpClient InternalPrepare(HttpClient httpClient)
     {
         if (!string.IsNullOrEmpty(UserAgent))

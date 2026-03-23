@@ -10,12 +10,18 @@ public enum ApiServiceDependencyInjectionType
 public class ApiServiceDecoratorAttribute : Attribute
 {
     public Type Type { get; set; }
-    public virtual ApiServiceDependencyInjectionType InjectionType { get; } =  ApiServiceDependencyInjectionType.SINGLETON;
+    public ApiServiceDependencyInjectionType InjectionType { get; } =  ApiServiceDependencyInjectionType.SINGLETON;
 
     public ApiServiceDecoratorAttribute() { }
 
     public ApiServiceDecoratorAttribute(Type type)
     {
+        Type = type;
+    }
+    
+    public ApiServiceDecoratorAttribute(Type type, ApiServiceDependencyInjectionType injectionType)
+    {
+        InjectionType = injectionType;
         Type = type;
     }
     
