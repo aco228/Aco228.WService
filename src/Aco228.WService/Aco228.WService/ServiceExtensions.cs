@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using Aco228.Common;
 using Aco228.WService.Attributes;
 using Aco228.WService.Base;
 using Aco228.WService.Helpers;
@@ -9,13 +10,13 @@ namespace Aco228.WService;
 
 public static class ServiceExtensions
 {
-    private static IHttpClientFactory? _httpClientFactory;
     private static ConcurrentDictionary<Type, HttpClient> _httpClientCache = new();
     
     public static void RegisterApiServices(
         this IServiceCollection services, 
         Assembly assembly)
     {
+        
         var assemblyTypes = assembly.GetTypes();
         var defaultHttpClient = new HttpClient()
         {
@@ -43,7 +44,12 @@ public static class ServiceExtensions
 
             Func<IServiceProvider, object>  implementationFactory = (provider =>
             {
-                var httpClient = GetHttpClient(assemblyType, defaultHttpClient);
+                var _injectionType = injectionType;
+                var httpClient =
+                    _injectionType == ApiServiceDependencyInjectionType.SINGLETON
+                        ? GetHttpClient(assemblyType, defaultHttpClient)
+                        : ServiceProviderHelper.GetService<IHttpClientFactory>()!.CreateClient();
+                        
                 var serviceByType = ApiServiceHelper.GetApiServiceByType(assemblyType, httpClient);
                 if(serviceByType == null)
                     throw new InvalidOperationException($"Cannot find Create method for {assemblyType.Name}");
