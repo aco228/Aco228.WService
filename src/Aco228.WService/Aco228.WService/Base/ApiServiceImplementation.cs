@@ -110,6 +110,7 @@ public class ApiServiceImplementation<T> : DispatchProxy where T : IApiService
             ? await httpContent.ReadAsStringAsync(cancellationToken)
             : string.Empty;
 
+        await ServiceConfiguration?.PrepareOnBeforeRequest(); 
         ServiceConfiguration?.OnBeforeRequest(methodType, ref url!, ref httpContent, httpContentString);
 
         HttpResponseMessage httpResponseMessage = await ExecuteCommand(methodType, url!, httpContent, cancellationToken);

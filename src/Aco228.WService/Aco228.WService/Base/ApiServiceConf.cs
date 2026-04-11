@@ -18,6 +18,7 @@ public abstract class ApiServiceConf
 
     public virtual HttpClient Prepare(HttpClient httpClient) => httpClient;
 
+    public virtual Task PrepareOnBeforeRequest() => Task.FromResult(true);
     public virtual void OnBeforeRequest(WebApiMethodType methodType, ref string url, ref HttpContent? httpContent, string? httpContentString) { }
 
     public virtual void OnException(WebApiRequestException exception){}
