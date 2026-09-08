@@ -17,7 +17,7 @@ internal class StringUrlHelper
     {
         result = null;
         
-        if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(concatUrl) || concatUrl.Length < 3)
+        if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(concatUrl) || concatUrl.Length < 2)
             return false;
 
         concatUrl = concatUrl.Remove("[IGNORE]").Replace("//", "/");
