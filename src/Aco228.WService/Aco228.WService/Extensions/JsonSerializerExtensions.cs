@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aco228.WService.Infrastructure;
@@ -38,4 +39,20 @@ public class JsonObjectPropertyConverterFactory : JsonConverterFactory
         var converterType = typeof(JsonObjectPropertyConverter<>).MakeGenericType(typeToConvert);
         return (JsonConverter?)Activator.CreateInstance(converterType);
     }
+
+    private static readonly ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> _optionsWithoutFactory = new();
+
+    /// <summary>
+    /// Copy of options without this factory, so a converter can fall back to default serialization
+    /// without picking itself again (infinite recursion).
+    /// </summary>
+    internal static JsonSerializerOptions WithoutFactory(JsonSerializerOptions options)
+        => _optionsWithoutFactory.GetValue(options, static source =>
+        {
+            var copy = new JsonSerializerOptions(source);
+            for (var i = copy.Converters.Count - 1; i >= 0; i--)
+                if (copy.Converters[i] is JsonObjectPropertyConverterFactory)
+                    copy.Converters.RemoveAt(i);
+            return copy;
+        });
 }

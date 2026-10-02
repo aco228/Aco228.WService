@@ -89,8 +89,8 @@ public class JsonObjectPropertyConverter<T> : JsonConverter<T> where T : new()
 
     public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
     {
-        // Default serialization - you can customize this if needed
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        // Default serialization, without the factory, otherwise it resolves this converter again and recurses forever
+        JsonSerializer.Serialize(writer, value, value.GetType(), JsonObjectPropertyConverterFactory.WithoutFactory(options));
     }
 
     /// <summary>
